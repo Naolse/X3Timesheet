@@ -1,8 +1,18 @@
 # TimeEntryLine — Field Map
 
-> Source: GraphQL introspection of `TimeEntryLine` type  
+> Source: GraphQL introspection of `TimeEntryLine` type + UI observation  
 > Endpoint: `https://195.23.16.22:3310/xtrem/api`  
 > Package: `x3ProjectManagement`
+
+## Additional fields observed in UI (Time Sheet - Sevways)
+
+| UI Label | GraphQL field (likely) | Notes |
+|---|---|---|
+| Tipo | `entryType` | Type of entry (e.g. Suport) |
+| Contacto | — | Contact person |
+| Título Tarefa | `localizedDescription` | Short task title (e.g. "Registo de data") |
+| Tarefas JIRA | — | JIRA ticket reference (custom field?) |
+| Descrição Tarefa | `longDescription` | Long task description |
 
 ---
 
