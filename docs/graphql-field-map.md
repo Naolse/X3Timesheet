@@ -18,10 +18,14 @@
 | Horas Interrupção | `breakHours` | Break/interruption hours (e.g. 1,00) |
 | Horas Faturadas | `billedQuantity` | Billed hours (auto = endTime - startTime - break) |
 | Tipo | `entryType` | Type of entry (e.g. Suport) |
-| Contacto | — | Contact person |
+| Contacto | `contact` | Contact person (optional) |
 | Título Tarefa | `taskTitle` | Short task title (e.g. "Registo de data") |
 | Tarefas JIRA | — | JIRA ticket reference (likely custom field via X3 Builder) |
 | Descrição Tarefa | `longDescription` | Long task description |
+| Total Horas | `timeSpent` | Total hours — computed from start/end/break |
+| Horas Extra | `extraHours` | Overtime flag (checkbox) |
+| Visível | `isBillable` | Whether entry is visible/billable (checkbox) |
+| C... | `isValidated` | Validated/closed flag (checkbox, last column) |
 
 ---
 
