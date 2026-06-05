@@ -9,13 +9,14 @@ const X3_URL      = "https://195.23.16.22:3310/xtrem/api";
 const X3_ENDPOINT = "SWPTPRD";
 const X3_AUTH     = "Basic T05BTDpBZGVzdGUyNDE2IQ==";
 
-// GraphQL client (ignore self-signed certificate)
+// Disable SSL verification for self-signed certificate
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 const client = new GraphQLClient(X3_URL, {
   headers: {
     "Authorization":    X3_AUTH,
     "x-xtrem-endpoint": X3_ENDPOINT,
   },
-  agent: new https.Agent({ rejectUnauthorized: false }),
 });
 
 const server = new McpServer({
