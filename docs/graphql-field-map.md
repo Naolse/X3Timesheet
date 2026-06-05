@@ -8,10 +8,19 @@
 
 | UI Label | GraphQL field (likely) | Notes |
 |---|---|---|
+| Terceiro | `thirdParty` | Client code (e.g. CA-00040) |
+| Razão Social | — | Client name — read-only, auto-filled from Terceiro |
+| Projecto | `project` | Project code (e.g. SW012403000255) |
+| Designação | `localizedDescription` | Short description (e.g. SEVWAYS ESTÁGIOS) |
+| Local | `location` | Work location (Remoto, Presencial...) |
+| Hora Início | `startTime` | Start time (e.g. 09:00) |
+| Hora Fim | `endTime` | End time (e.g. 18:00) |
+| Horas Interrupção | `breakHours` | Break/interruption hours (e.g. 1,00) |
+| Horas Faturadas | `billedQuantity` | Billed hours (auto = endTime - startTime - break) |
 | Tipo | `entryType` | Type of entry (e.g. Suport) |
 | Contacto | — | Contact person |
-| Título Tarefa | `localizedDescription` | Short task title (e.g. "Registo de data") |
-| Tarefas JIRA | — | JIRA ticket reference (custom field?) |
+| Título Tarefa | `taskTitle` | Short task title (e.g. "Registo de data") |
+| Tarefas JIRA | — | JIRA ticket reference (likely custom field via X3 Builder) |
 | Descrição Tarefa | `longDescription` | Long task description |
 
 ---
