@@ -1,28 +1,36 @@
 # GraphQL Snippets — Reference File
 
-> Endpoint: `https://195.23.16.22:3310/xtrem/api`  
-> Headers required:
+> Endpoint: `https://195.23.16.22:3310/xtrem/api`
+> Headers:
 > ```json
-> {
->   "Authorization": "Basic T05BTDpBZGVzdGUyNDE2IQ==",
->   "x-xtrem-endpoint": "SWPTPRD"
-> }
+> { "Authorization": "Basic T05BTDpBZGVzdGUyNDE2IQ==", "x-xtrem-endpoint": "SWPTINT" }
 > ```
+> Node: **custom** `sevwaysYtimesheet` (NOT `x3ProjectManagement.timeEntryLine`).
 
 ---
 
-## 1. List Business Partners (warm-up — working ✅)
+## 1. Introspection — confirm the custom node exists ✅
 
 ```graphql
-query listBusinessPartners {
-  x3MasterData {
-    businessPartner {
-      query {
-        edges {
-          node {
-            _id
-          }
-        }
+query { __type(name: "TimeSheet") { name description fields { name } } }
+```
+
+Also: `__type(name: "TimesheetLine")`, `__type(name: "TimeSheet_Input")`.
+
+---
+
+## 2. List timesheets (header) — working ✅
+
+```graphql
+query {
+  sevwaysYtimesheet {
+    timeSheet {
+      query(first: 50) {
+        edges { node {
+          timesheetId date validated
+          facility { code }
+          user { login }
+        } }
       }
     }
   }
@@ -31,27 +39,33 @@ query listBusinessPartners {
 
 ---
 
-## 2. List Time Entries (blocked — TimeEntryLine.read not activated ❌)
+## 3. List filtered by user — working ✅
 
 ```graphql
-query listTimeEntries {
-  x3ProjectManagement {
-    timeEntryLine {
-      query {
-        edges {
-          node {
-            _id
-            date
-            timeSpent
-            localizedDescription
-            project {
-              _id
-            }
-            employee {
-              _id
-            }
-          }
-        }
+query {
+  sevwaysYtimesheet {
+    timeSheet {
+      query(first: 50, filter: "{user:{login:{_eq:'ONAL'}}}") {
+        edges { node { timesheetId date validated } }
+      }
+    }
+  }
+}
+```
+
+Date range (combine keys — implicit AND):
+`filter: "{user:{login:{_eq:'ONAL'}}, date:{_gte:'2026-06-01', _lte:'2026-06-30'}}"`
+
+---
+
+## 4. Get one by timesheetId — working ✅
+
+```graphql
+query {
+  sevwaysYtimesheet {
+    timeSheet {
+      query(first: 1, filter: "{timesheetId:{_eq:'SW01ONAL26/001531'}}") {
+        edges { node { timesheetId date validated facility { code } user { login } } }
       }
     }
   }
@@ -60,101 +74,65 @@ query listTimeEntries {
 
 ---
 
-## 3. List Time Entries with filters (to be tested)
+## 5. Header + detail lines — ⏳ needs `TimesheetLine.read` rights
 
 ```graphql
-query listTimeEntriesFiltered {
-  x3ProjectManagement {
-    timeEntryLine {
-      query(filter: "{employee:{_id:{_eq:'ONAL'}}}") {
-        edges {
-          node {
-            _id
-            date
-            timeSpent
-            localizedDescription
-            isValidated
-            project {
-              _id
-            }
-          }
-        }
+query {
+  sevwaysYtimesheet {
+    timeSheet {
+      query(first: 5, filter: "{user:{login:{_eq:'ONAL'}}}") {
+        edges { node {
+          timesheetId date validated
+          lines { query(first: 200) { edges { node {
+            lineNumber startTime endTime totalHours billedHours
+            taskType taskTitle jiraTask done location
+            project { id localizedDescription }
+          } } } }
+        } }
       }
     }
   }
 }
+```
+
+> Currently the header returns, but `lines.query` is `null` with the warning
+> `"Não tem direitos para realizar esta operação. TimesheetLine.read"` until the
+> read right is granted on the X3 side.
+
+---
+
+## 6. Create mutation — ⏳ pending (`sevwaysYtimesheetMutation` not yet exposed)
+
+Expected shape once mutations are wired (the `TimeSheet_Input` type already exists):
+
+```graphql
+mutation($data: TimeSheet_Input!) {
+  sevwaysYtimesheet {
+    timeSheet {
+      create(data: $data) { timesheetId date validated }
+    }
+  }
+}
+```
+```json
+{ "data": { "user": "ONAL", "facility": "SW01", "date": "2026-06-25", "validated": false } }
 ```
 
 ---
 
-## 4. Get Time Entry by ID (to be tested)
+## 7. Update mutation — ⏳ pending
 
 ```graphql
-query getTimeEntry {
-  x3ProjectManagement {
-    timeEntryLine {
-      byId(id: "REPLACE_WITH_ID") {
-        _id
-        date
-        timeSpent
-        localizedDescription
-        isValidated
-        status
-        project {
-          _id
-        }
-        employee {
-          _id
-        }
-      }
+mutation($data: TimeSheet_Input!) {
+  sevwaysYtimesheet {
+    timeSheet {
+      update(data: $data) { timesheetId date validated }
     }
   }
 }
 ```
-
----
-
-## 5. Create Time Entry mutation (to be tested)
-
-```graphql
-mutation createTimeEntry {
-  x3ProjectManagement {
-    timeEntryLine {
-      create(input: {
-        employee: { _id: "ONAL" }
-        date: "2026-06-01"
-        project: { _id: "SW012403000255" }
-        timeSpent: 8
-        localizedDescription: "Desenvolvimento MCP Server"
-      }) {
-        _id
-        date
-        timeSpent
-        status
-      }
-    }
-  }
-}
+```json
+{ "data": { "timesheetId": "SW01ONAL26/001533", "validated": true } }
 ```
 
----
-
-## 6. Update Time Entry mutation (to be tested)
-
-```graphql
-mutation updateTimeEntry {
-  x3ProjectManagement {
-    timeEntryLine {
-      update(id: "REPLACE_WITH_ID", input: {
-        timeSpent: 4
-        localizedDescription: "Desenvolvimento MCP Server - atualizado"
-      }) {
-        _id
-        date
-        timeSpent
-        status
-      }
-    }
-  }
-}
-```
+> No delete snippet — delete is intentionally not used by this project.

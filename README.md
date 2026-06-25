@@ -1,43 +1,97 @@
-# X3Timesheet
+# X3Timesheet — MCP Server para SAGE X3
+
+Servidor **MCP (Model Context Protocol)** que permite a agentes de IA (ex.: Claude)
+**consultar e registar timesheets** diretamente no SAGE X3 da SEVWAYS, através da
+sua API GraphQL.
+
+> Estágio SEVWAYS — Desenvolvimento de MCP Server sobre SAGE X3 GraphQL.
+> Âmbito: registo de timesheets. Uso interno / investigação.
+
+---
 
 ## O que aprendi sobre time entries no X3
 
-No SAGE X3, o registo de horas de trabalho é feito através do módulo **Time Sheet** (Registo de Atividade), dentro do módulo de Project Management. Cada registo representa um dia de trabalho de um utilizador numa determinada data.
+Na SEVWAYS, o registo de horas **não** usa o módulo standard de Project Management
+(`timeEntryLine`). Usa um **objeto custom** desenvolvido internamente — o ecrã
+`GESYTS`, exposto na API GraphQL como o nó **`sevwaysYtimesheet.timeSheet`**.
 
-### Estrutura de um Time Sheet
+Cada Time Sheet representa **um dia de trabalho** de um utilizador e tem dois níveis:
 
-Um Time Sheet é composto por dois níveis:
+**Cabeçalho (`TimeSheet`)** — identifica o registo:
+- **timesheetId** — identificador único, formato `[Estab][User][Ano]/[Sequência]` (ex.: `SW01ONAL26/001531`)
+- **facility** — estabelecimento (ex.: `SW01`)
+- **user** — colaborador (ex.: `ONAL`)
+- **date** — dia a que as horas dizem respeito
+- **validated** — se foi aprovado pelo responsável
 
-**Cabeçalho** — identifica o registo principal:
-- **ID Time Sheet** — identificador único gerado automaticamente pelo sistema (ex: `SW01ONAL26/001531`)
-- **Estabelecimento** — a entidade/empresa à qual o registo pertence (ex: `SW01 - Several Ways`)
-- **Utilizador** — o colaborador que registou as horas (ex: `ONAL - Oleksandr Nalyvaiko`)
-- **Data** — o dia a que as horas dizem respeito
-- **Total Horas** — soma automática das horas de todas as linhas de detalhe
-- **Validado** — indica se o registo foi aprovado pelo responsável hierárquico
+**Linhas (`TimesheetLine`)** — trabalho realizado nesse dia:
+- **project** — projeto onde as horas são imputadas
+- **businessPartner** — cliente associado
+- **startTime / endTime** — hora de início e fim (formato `HHMM`)
+- **totalHours / billedHours / interruptionHours** — horas trabalhadas, faturadas, de interrupção
+- **taskType** — tipo de tarefa (`suporte`, `desenvolvimento`, `correcaoBug`, `reuniao`, …)
+- **taskTitle / jiraTask** — título da tarefa e ticket JIRA
+- **location** — `remoto` ou `presencial`
+- **done / overtime / visible** — flags
 
-**Detalhes** — linhas de trabalho realizado nesse dia:
-- **Terceiro** — o cliente associado ao trabalho (ex: `CA-00040 - Several Ways Lda`)
-- **Razão Social** — nome completo do cliente
-- **Projecto** — o projeto onde as horas foram imputadas (ex: `SW012403000255 - SEVWAYS ESTÁGIOS`)
-- **Designação** — descrição da atividade realizada
-- **Local** — modalidade de trabalho (ex: Remoto, Presencial)
-- **Horas Faturadas** — horas a faturar ao cliente
-- **Total Horas** — total de horas trabalhadas nessa linha
-- **Horas Extra** — horas adicionais fora do horário normal
-- **Título Tarefa** — descrição curta da tarefa executada
+Modelo completo e classificação dos campos: [`docs/graphql-field-map.md`](docs/graphql-field-map.md)
+e [`docs/time-entry-model.md`](docs/time-entry-model.md).
 
-### Fluxo típico
+---
 
-1. O colaborador cria um novo Time Sheet para o dia
-2. Adiciona uma ou mais linhas de detalhe com o projeto e horas
-3. O registo fica em estado pendente até ser validado
-4. O responsável valida (ou rejeita) o Time Sheet
+## Ferramentas MCP
 
-### Observações importantes
+| Tool | Tipo | Estado | Descrição |
+|---|---|---|---|
+| `list_time_entries` | leitura | ✅ funcional (cabeçalho) | Lista timesheets, com filtros `user` / `dateFrom` / `dateTo` / `validated` |
+| `get_time_entry` | leitura | ✅ funcional (cabeçalho) | Obtém um timesheet por `timesheetId` |
+| `list_projects` | leitura | ⏳ depende de `TimesheetLine.read` | Projetos distintos referenciados nas linhas |
+| `create_time_entry` | escrita | ⏳ mutations pendentes no X3 | Cria um timesheet (confirma com o utilizador antes) |
+| `update_time_entry` | escrita | ⏳ mutations pendentes no X3 | Atualiza um timesheet ainda não validado |
 
-- Cada Time Sheet corresponde a **um único dia** de trabalho
-- É possível registar horas em **múltiplos projetos** no mesmo dia (várias linhas de detalhe)
-- O ID é gerado automaticamente no formato `[Estab][User][Ano]/[Sequência]`
-- Não existe ambiente sandbox — todos os registos são feitos diretamente em produção
-- O campo **Projecto** é uma referência obrigatória — não é possível registar horas sem associar a um projeto
+> **Sem delete** — por opção de design, o servidor não expõe operações de eliminação.
+> Estado atual do acesso: leitura do cabeçalho ativa; leitura das `lines` e mutations
+> em curso do lado do X3 (ver [`docs/time-entry-model.md`](docs/time-entry-model.md)).
+
+---
+
+## Instalação
+
+```bash
+npm install
+```
+
+### Ligar ao Claude Desktop
+
+Adicionar ao `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "sevways-x3-timesheet": {
+      "command": "node",
+      "args": ["C:/Users/Alex/X3Timesheet/index.js"]
+    }
+  }
+}
+```
+
+Reiniciar o Claude Desktop e confirmar que as tools aparecem.
+
+---
+
+## Arquitetura
+
+```
+Claude  ──MCP (stdio/JSON-RPC)──►  index.js  ──GraphQL──►  SAGE X3 /xtrem/api
+                                  (este server)            sevwaysYtimesheet.timeSheet
+```
+
+- Transporte **stdio** — logging exclusivamente via `console.error` (stdout é do protocolo).
+- Autenticação **Basic Auth** (utilizador ONAL) — migração para JWT/Connected App prevista.
+- Endpoint GraphQL: `x-xtrem-endpoint: SWPTINT`.
+- Erros do X3 são **propagados** (não engolidos) como `warnings` no resultado.
+
+## Stack
+
+Node.js 18+ · `@modelcontextprotocol/sdk` · `graphql-request` · `zod`

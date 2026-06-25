@@ -1,134 +1,78 @@
-# TimeEntryLine — Field Map
+# Field Map — `sevwaysYtimesheet` (TimeSheet / TimesheetLine)
 
-> Source: GraphQL introspection of `TimeEntryLine` type + UI observation  
-> Endpoint: `https://195.23.16.22:3310/xtrem/api`  
-> Package: `x3ProjectManagement`
+> Source: GraphQL introspection of the **custom** SEVWAYS timesheet node.
+> Endpoint: `https://195.23.16.22:3310/xtrem/api` · `x-xtrem-endpoint: SWPTINT`
+> Package: `sevwaysYtimesheet` (custom — exposed via X3 Builder).
+> The standard `x3ProjectManagement.timeEntryLine` is **not** used by SEVWAYS.
 
-## Additional fields observed in UI (Time Sheet - Sevways)
-
-| UI Label | GraphQL field (likely) | Notes |
-|---|---|---|
-| Terceiro | `thirdParty` | Client code (e.g. CA-00040) |
-| Razão Social | — | Client name — read-only, auto-filled from Terceiro |
-| Projecto | `project` | Project code (e.g. SW012403000255) |
-| Designação | `localizedDescription` | Short description (e.g. SEVWAYS ESTÁGIOS) |
-| Local | `location` | Work location (Remoto, Presencial...) |
-| Hora Início | `startTime` | Start time (e.g. 09:00) |
-| Hora Fim | `endTime` | End time (e.g. 18:00) |
-| Horas Interrupção | `breakHours` | Break/interruption hours (e.g. 1,00) |
-| Horas Faturadas | `billedQuantity` | Billed hours (auto = endTime - startTime - break) |
-| Tipo | `entryType` | Type of entry (e.g. Suport) |
-| Contacto | `contact` | Contact person (optional) |
-| Título Tarefa | `taskTitle` | Short task title (e.g. "Registo de data") |
-| Tarefas JIRA | — | JIRA ticket reference (likely custom field via X3 Builder) |
-| Descrição Tarefa | `longDescription` | Long task description |
-| Total Horas | `timeSpent` | Total hours — computed from start/end/break |
-| Horas Extra | `extraHours` | Overtime flag (checkbox) |
-| Visível | `isBillable` | Whether entry is visible/billable (checkbox) |
-| C... | `isValidated` | Validated/closed flag (checkbox, last column) |
+The node has two object types — a header (`TimeSheet`) and detail lines
+(`TimesheetLine`), plus matching input types (`TimeSheet_Input`,
+`TimesheetLine_Input`) used by the (pending) mutations.
 
 ---
 
-## Field Classification
+## `TimeSheet` (header)
 
-### 🔒 Read-Only (system fields — cannot be set)
-
-| Field | Type | Description |
+| Field | Type | Functional meaning |
 |---|---|---|
-| `_id` | ID | Unique identifier of the record |
-| `_createUser` | SysUser | User who created the record |
-| `_updateUser` | SysUser | User who last updated the record |
-| `_createStamp` | Datetime | Creation timestamp |
-| `_updateStamp` | Datetime | Last update timestamp |
-| `_etag` | String | Optimistic concurrency token |
-| `_access` | List | Access bindings |
-| `status` | Enum (TimeEntryStatus) | Current status (Awaiting, Validated, Rejected...) |
-| `origin` | Enum (TimeEntryOrigin) | How entry was created |
-| `isValidated` | Boolean | Whether entry is validated |
-| `validatedBy` | User | Who validated |
-| `approvedBy` | User | Who approved |
-| `rejectedBy` | User | Who rejected |
-| `controlledBy` | User | Who controlled |
-| `postedBy` | User | Who posted |
-| `journal` | Journal | Accounting journal reference |
-| `journalNumber` | String | Accounting journal number |
-| `accountingDate` | Date | Date of accounting posting |
-| `billedQuantity` | Decimal | Quantity already billed |
-| `lineNumber` | Int | Line number (auto-assigned) |
-| `connectedEmployee` | ProjectUser | Linked employee (computed) |
-| `defaultTimeCategory` | TimeCategory | Default category (computed) |
-| `defaultUnit` | UnitOfMeasure | Default unit (computed) |
-| `isNegativeTimeSpentAllowed` | Boolean | Business rule flag |
-| `isTimeEntryAdministrator` | Boolean | Permission flag |
-| `isTimeEntryEmployee` | Boolean | Permission flag |
-| `isValidatedDefault` | Boolean | Default validation flag |
+| `timesheetId` | String | Unique ID, format `[Facility][User][Year]/[Seq]` (e.g. `SW01ONAL26/001531`) |
+| `facility` | Site → `.code` | Establishment (e.g. `SW01`) |
+| `user` | User → `.login` | Employee who logged the hours (e.g. `ONAL`) |
+| `date` | Date | Day the hours refer to |
+| `validated` | Boolean | Approved by the responsible person |
+| `lines` | TimesheetLine[] | Detail lines (nested collection) |
+| `_id` | Id | 🔒 internal id |
+| `_createUser` / `_updateUser` | SysUser | 🔒 audit |
+| `_createStamp` / `_updateStamp` | Datetime | 🔒 audit timestamps |
+| `_etag` | String | 🔒 optimistic-concurrency token |
+
+## `TimesheetLine` (detail)
+
+| Field | Type | Functional meaning |
+|---|---|---|
+| `lineNumber` | Int | Line sequence (e.g. 1000, 2000) |
+| `project` | ProjectLink → `.id` `.localizedDescription` | Project the hours are charged to |
+| `businessPartner` | BusinessPartner | Client associated with the work |
+| `startTime` | String | Start time, `HHMM` (e.g. `0900`) |
+| `endTime` | String | End time, `HHMM` (e.g. `1800`) |
+| `totalHours` | Decimal | Hours worked on this line |
+| `interruptionHours` | Decimal | Break / interruption hours |
+| `billedHours` | Decimal | Hours to bill the client |
+| `overtime` | Boolean | Overtime flag |
+| `taskType` | Enum `TipoTarefa` | Type of task (see enum below) |
+| `taskTitle` | String | Short task title |
+| `jiraTask` | String | JIRA ticket reference |
+| `done` | Boolean | Task completed |
+| `location` | Enum `Local` | `remoto` / `presencial` |
+| `contact` | String | Contact person (optional) |
+| `visible` | Boolean | Whether the line is visible |
+| `timesheetId` | String | Parent timesheet ID |
+| `_id`, `_etag`, `_create*`, `_update*` | — | 🔒 internal / audit |
 
 ---
 
-### ✅ Required on Creation (must be provided)
+## Enums
 
-| Field | Type | Description |
-|---|---|---|
-| `employee` | ProjectUser | The employee logging the hours |
-| `date` | Date | Date of the work |
-| `project` | Project | Project where hours are logged |
-| `timeSpent` | Decimal | Number of hours worked |
+- **`Local`** (location): `remoto`, `presencial`
+- **`TipoTarefa`** (taskType): `suporte`, `desenvolvimento`, `correcaoBug`, `explicacao`,
+  `formacao`, `reuniao`, `testes`, `interno`, `implementacao`, `ausencia`
 
 ---
 
-### 🔧 Optional on Creation
+## Field classification for create (`TimeSheet_Input`)
 
-| Field | Type | Description |
-|---|---|---|
-| `task` | Task | Specific task within the project |
-| `taskLink` | ProjectLink | Link to task |
-| `budgetLink` | ProjectLink | Link to budget |
-| `operation` | Operation | Manufacturing operation (if applicable) |
-| `assignmentLine` | OperationAssignment | Assignment line |
-| `budget` | Budget | Budget reference |
-| `financialSite` | Site | Financial site |
-| `currency` | Currency | Currency for billing |
-| `rateType` | Enum (ExchangeRateType) | Exchange rate type |
-| `projectCostType` | CostType | Cost type for project |
-| `employeeCostType` | CostType | Cost type for employee |
-| `projectLaborRate` | Decimal | Labor rate for project |
-| `employeeLaborRate` | Decimal | Labor rate for employee |
-| `unit` | UnitOfMeasure | Unit of measure (hours, days...) |
-| `timeCategory` | TimeCategory | Category of time (normal, overtime...) |
-| `rateMultiplier` | Decimal | Rate multiplier |
-| `localizedDescription` | String | Short description of work done |
-| `isBillable` | Boolean | Whether hours are billable |
-| `billableFrom` | Date | Date from which hours are billable |
-| `longComment` | TextStream | Long comment |
-| `longDescription` | TextStream | Long description |
-| `entryType` | EntryType | Type of entry |
-| `firstOperationSplit` | Int | Operation split index |
-| `currencyRates` | Collection | Currency rate lines |
-| `dimensions` | Collection | Dimension lines |
-| `billingPlan` | ProjectBillingPlan | Billing plan |
-| `billingPlanLine` | ProjectBillingPlanLine | Billing plan line |
+| Field | Role |
+|---|---|
+| `user` (ExternalReference) | ✅ required — who the timesheet belongs to |
+| `facility` (ExternalReference) | ✅ required — establishment |
+| `date` (Date) | ✅ required — day |
+| `validated` (Boolean) | 🔧 optional — usually `false` on creation |
+| `timesheetId` (String) | 🔒 auto-generated by X3 |
+| `_id`, `_etag`, `_create*`, `_update*`, `_sourceId` | 🔒 system |
 
----
+`TimesheetLine_Input` mirrors `TimesheetLine`; references (`project`,
+`businessPartner`, `facility`, `user`) are passed as **ExternalReference**
+(the natural code/key), and enums via `*_EnumInput`.
 
-## Minimum viable create mutation fields
-
-```graphql
-mutation createTimeEntry {
-  x3ProjectManagement {
-    timeEntryLine {
-      create(input: {
-        employee: { _id: "ONAL" }
-        date: "2026-06-01"
-        project: { _id: "SW012403000255" }
-        timeSpent: 8
-        localizedDescription: "Desenvolvimento MCP Server"
-      }) {
-        _id
-        date
-        timeSpent
-        status
-      }
-    }
-  }
-}
-```
+> Note: read of `TimesheetLine` and the write mutations were still being
+> activated on the X3 side at the time of writing — see `time-entry-model.md`.

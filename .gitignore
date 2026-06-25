@@ -1,0 +1,13 @@
+node_modules/
+
+# Auth / session artifacts — never commit credentials or cookies
+*.txt
+cookies*
+session_*
+fresh_cookies*
+.env
+.env.*
+
+# Editor / OS
+.DS_Store
+*.log

@@ -1,0 +1,26 @@
+{
+  "name": "x3timesheet",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Naolse/X3Timesheet.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Naolse/X3Timesheet/issues"
+  },
+  "homepage": "https://github.com/Naolse/X3Timesheet#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "graphql-request": "^7.4.0",
+    "zod": "^4.4.3"
+  }
+}
